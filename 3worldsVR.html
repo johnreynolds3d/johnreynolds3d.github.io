@@ -6,7 +6,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- Origin Trial Token, feature = WebVR (For Chrome M62+), origin = https://felixinutero.com, expires = 2018-02-22 -->
-    <meta http-equiv="origin-trial" data-feature="WebVR (For Chrome M62+)" data-expires="2018-02-22" content="AijjIc+H1PiFpsGO8EGncPpKKcm+uD0Fxh52XnGYeKh7RlvxBPmJTWEHA+nCskrMKK5UVdGZ799lwa+7n1QIWgQAAABoeyJvcmlnaW4iOiJodHRwczovL2ZlbGl4aW51dGVyby5jb206NDQzIiwiZmVhdHVyZSI6IldlYlZSMS4xTTYyIiwiZXhwaXJ5IjoxNTE5Mjc0NjA1LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
+    <meta http-equiv="origin-trial" data-feature="WebVR (For Chrome M62+)" data-expires="2018-02-22"
+        content="AijjIc+H1PiFpsGO8EGncPpKKcm+uD0Fxh52XnGYeKh7RlvxBPmJTWEHA+nCskrMKK5UVdGZ799lwa+7n1QIWgQAAABoeyJvcmlnaW4iOiJodHRwczovL2ZlbGl4aW51dGVyby5jb206NDQzIiwiZmVhdHVyZSI6IldlYlZSMS4xTTYyIiwiZXhwaXJ5IjoxNTE5Mjc0NjA1LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
     <meta name="theme-color" content="#303030" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
@@ -39,7 +40,7 @@
                 scene = new THREE.Scene();
                 scene.background = new THREE.CubeTextureLoader()
                     .setPath('images/cube/winter/')
-                    .load(['px.webp', 'nx.webp', 'py.webp', 'ny.webp', 'pz.webp', 'nz.webp']);
+                    .load(['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg']);
                 scene.background.format = THREE.RGBFormat;
 
                 camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10);
@@ -112,7 +113,7 @@
                 room.add(circleRed);
 
                 var loader = new THREE.FontLoader();
-                loader.load('css/fonts/droid_sans_regular.typeface.json', function(font) {
+                loader.load('css/fonts/droid_sans_regular.typeface.json', function (font) {
                     var textGeometry = new THREE.TextBufferGeometry('3worldsVR', {
                         font: font,
                         size: 0.2,
