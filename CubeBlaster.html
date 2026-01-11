@@ -1,229 +1,229 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <title>CUBEBLASTER!</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <!-- Origin Trial Token, feature = WebVR (For Chrome M62+), origin = https://felixinutero.com, expires = 2018-02-22 -->
+    <meta
+      http-equiv="origin-trial"
+      data-feature="WebVR (For Chrome M62+)"
+      data-expires="2018-02-22"
+      content="AijjIc+H1PiFpsGO8EGncPpKKcm+uD0Fxh52XnGYeKh7RlvxBPmJTWEHA+nCskrMKK5UVdGZ799lwa+7n1QIWgQAAABoeyJvcmlnaW4iOiJodHRwczovL2ZlbGl4aW51dGVyby5jb206NDQzIiwiZmVhdHVyZSI6IldlYlZSMS4xTTYyIiwiZXhwaXJ5IjoxNTE5Mjc0NjA1LCJpc1N1YmRvbWFpbiI6dHJ1ZX0="
+    />
+    <meta name="theme-color" content="#505050" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
 
-<head>
-	<title>CUBEBLASTER!</title>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-	<!-- Origin Trial Token, feature = WebVR (For Chrome M62+), origin = https://felixinutero.com, expires = 2018-02-22 -->
-	<meta http-equiv="origin-trial" data-feature="WebVR (For Chrome M62+)" data-expires="2018-02-22" content="AijjIc+H1PiFpsGO8EGncPpKKcm+uD0Fxh52XnGYeKh7RlvxBPmJTWEHA+nCskrMKK5UVdGZ799lwa+7n1QIWgQAAABoeyJvcmlnaW4iOiJodHRwczovL2ZlbGl4aW51dGVyby5jb206NDQzIiwiZmVhdHVyZSI6IldlYlZSMS4xTTYyIiwiZXhwaXJ5IjoxNTE5Mjc0NjA1LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
-	<meta name="theme-color" content="#505050" />
-	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-	<style>
-		body {
-			margin: 0;
-			overflow: hidden;
-		}
-	</style>
-</head>
+  <body>
+    <div role="main">
+      <script src="js/three.min.js"></script>
+      <script src="js/ray.min.js"></script>
+      <script src="js/WebVR.min.js"></script>
 
-<body>
-	<div role="main">
+      <script>
+        const clock = new THREE.Clock();
 
-		<script src="js/three.min.js"></script>
-		<script src="js/ray.min.js"></script>
-		<script src="js/WebVR.min.js"></script>
+        let container, camera, scene, renderer, room;
+        let input;
+        const objects = [];
+        let loader, textGeometry, textMaterial, logo;
+        let score = 0;
 
-		<script>
-			var clock = new THREE.Clock();
+        init();
+        animate();
 
-			var container, camera, scene, renderer, room;
-			var input;
-			var objects = [];
-			var loader, textGeometry, textMaterial, logo;
-			var score = 0;
+        function init() {
+          container = document.createElement('div');
+          document.body.appendChild(container);
 
-			init();
-			animate();
+          scene = new THREE.Scene();
+          scene.background = new THREE.Color(0x404040);
 
-			function init() {
+          camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10);
+          camera.position.x = 0;
 
-				container = document.createElement('div');
-				document.body.appendChild(container);
+          room = new THREE.Mesh(
+            new THREE.BoxGeometry(6, 6, 6, 8, 8, 8),
+            new THREE.MeshBasicMaterial({
+              color: 0x808080,
+              wireframe: true,
+            })
+          );
+          scene.add(room);
 
-				scene = new THREE.Scene();
-				scene.background = new THREE.Color(0x404040);
+          scene.add(new THREE.HemisphereLight(0x606060, 0x404040));
 
-				camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 10);
-				camera.position.x = 0;
+          const light = new THREE.DirectionalLight(0xffffff);
+          light.position.set(1, 1, 1).normalize();
+          scene.add(light);
 
-				room = new THREE.Mesh(
-					new THREE.BoxGeometry(6, 6, 6, 8, 8, 8),
-					new THREE.MeshBasicMaterial({
-						color: 0x808080,
-						wireframe: true
-					})
-				);
-				scene.add(room);
+          loader = new THREE.FontLoader();
+          loader.load('css/fonts/droid_sans_regular.typeface.json', function (font) {
+            textGeometry = new THREE.TextBufferGeometry('Score: ' + score, {
+              font: font,
+              size: 0.07,
+              height: 0,
+              curveSegments: 64,
+            });
+            textMaterial = new THREE.MeshBasicMaterial({
+              color: 0x008000,
+            });
+            logo = new THREE.Mesh(textGeometry, textMaterial);
+            logo.position.x = -0.17;
+            logo.position.y = 0;
+            logo.position.z = -0.7;
+            room.add(logo);
+          });
 
-				scene.add(new THREE.HemisphereLight(0x606060, 0x404040));
+          renderer = new THREE.WebGLRenderer({
+            antialias: true,
+          });
+          renderer.setPixelRatio(window.devicePixelRatio);
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          renderer.vr.enabled = true;
+          container.appendChild(renderer.domElement);
 
-				var light = new THREE.DirectionalLight(0xffffff);
-				light.position.set(1, 1, 1).normalize();
-				scene.add(light);
+          document.body.appendChild(WEBVR.createButton(renderer));
 
-				loader = new THREE.FontLoader();
-				loader.load('css/fonts/droid_sans_regular.typeface.json', function (font) {
-					textGeometry = new THREE.TextBufferGeometry('Score: ' + score, {
-						font: font,
-						size: 0.07,
-						height: 0,
-						curveSegments: 64
-					});
-					textMaterial = new THREE.MeshBasicMaterial({
-						color: 0x008000
-					});
-					logo = new THREE.Mesh(textGeometry, textMaterial);
-					logo.position.x = -0.17;
-					logo.position.y = 0;
-					logo.position.z = -0.7;
-					room.add(logo);
-				});
+          // Ray input
+          input = new RayInput.default(camera, renderer.domElement);
+          input.setSize(renderer.getSize());
 
-				renderer = new THREE.WebGLRenderer({
-					antialias: true
-				});
-				renderer.setPixelRatio(window.devicePixelRatio);
-				renderer.setSize(window.innerWidth, window.innerHeight);
-				renderer.vr.enabled = true;
-				container.appendChild(renderer.domElement);
+          // Display something to the user that shows where they’re pointing
+          scene.add(input.getMesh());
 
-				document.body.appendChild(WEBVR.createButton(renderer));
+          // Generate objects
+          for (let i = 0; i < 64; i++) {
+            const object = new THREE.Mesh(
+              new THREE.CubeGeometry(0.1, 0.1, 0.1),
+              new THREE.MeshLambertMaterial({
+                color: Math.random() * 0xffffff,
+              })
+            );
 
-				// Ray input
-				input = new RayInput.default(camera, renderer.domElement);
-				input.setSize(renderer.getSize());
+            object.position.x = Math.random() * 4 - 2;
+            object.position.y = Math.random() * 4 - 2;
+            object.position.z = Math.random() * 4 - 2;
 
-				// Display something to the user that shows where they’re pointing
-				scene.add(input.getMesh());
+            object.rotation.x = Math.random() * 2 * Math.PI;
+            object.rotation.y = Math.random() * 2 * Math.PI;
+            object.rotation.z = Math.random() * 2 * Math.PI;
 
-				// Generate objects
-				for (var i = 0; i < 64; i++) {
+            object.scale.x = Math.random() + 0.5;
+            object.scale.y = Math.random() + 0.5;
+            object.scale.z = Math.random() + 0.5;
 
-					var object = new THREE.Mesh(new THREE.CubeGeometry(0.1, 0.1, 0.1), new THREE.MeshLambertMaterial({
-						color: Math.random() * 0xffffff
-					}));
+            object.userData.velocity = new THREE.Vector3();
+            object.userData.velocity.x = Math.random() * 0.01 - 0.005;
+            object.userData.velocity.y = Math.random() * 0.01 - 0.005;
+            object.userData.velocity.z = Math.random() * 0.01 - 0.005;
 
-					object.position.x = Math.random() * 4 - 2;
-					object.position.y = Math.random() * 4 - 2;
-					object.position.z = Math.random() * 4 - 2;
+            object.castShadow = true;
+            object.receiveShadow = true;
+            object.material.transparent = true;
 
-					object.rotation.x = Math.random() * 2 * Math.PI;
-					object.rotation.y = Math.random() * 2 * Math.PI;
-					object.rotation.z = Math.random() * 2 * Math.PI;
+            scene.add(object);
+            input.add(object);
+            objects.push(object);
+          }
 
-					object.scale.x = Math.random() + 0.5;
-					object.scale.y = Math.random() + 0.5;
-					object.scale.z = Math.random() + 0.5;
+          // Register a callback whenever an object is activated
+          input.on('raydown', (selectable) => {
+            const index = objects.indexOf(selectable);
+            if (index > -1) {
+              objects.splice(index, 1);
 
-					object.userData.velocity = new THREE.Vector3();
-					object.userData.velocity.x = Math.random() * 0.01 - 0.005;
-					object.userData.velocity.y = Math.random() * 0.01 - 0.005;
-					object.userData.velocity.z = Math.random() * 0.01 - 0.005;
+              scene.remove(selectable);
+              // selectable.material.opacity = 0.0;
+              input.remove(selectable);
 
-					object.castShadow = true;
-					object.receiveShadow = true;
-					object.material.transparent = true;
+              room.remove(logo);
+              loader.load('css/fonts/droid_sans_regular.typeface.json', function (font) {
+                textGeometry = new THREE.TextBufferGeometry('Score: ' + ++score, {
+                  font: font,
+                  size: 0.07,
+                  height: 0,
+                  curveSegments: 64,
+                });
+                textMaterial = new THREE.MeshBasicMaterial({
+                  color: 0x008000,
+                });
+                logo = new THREE.Mesh(textGeometry, textMaterial);
+                logo.position.x = -0.17;
+                logo.position.y = 0;
+                logo.position.z = -0.7;
+                room.add(logo);
+              });
+            }
+          });
 
-					scene.add(object);
-					input.add(object);
-					objects.push(object);
-				}
+          // Register a callback when an object is selected
+          input.on('rayover', (selectable) => {
+            selectable.material.opacity = 0.5;
+          });
 
-				// Register a callback whenever an object is activated
-				input.on('raydown', (selectable) => {
+          // Register a callback when an object is no longer selected
+          input.on('rayout', (selectable) => {
+            selectable.material.opacity = 1;
+          });
 
-					var index = objects.indexOf(selectable);
-					if (index > -1) {
-						objects.splice(index, 1);
+          window.addEventListener('resize', onWindowResize, false);
+        }
 
-						scene.remove(selectable);
-						// selectable.material.opacity = 0.0;
-						input.remove(selectable);
+        function onWindowResize() {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }
 
-						room.remove(logo);
-						loader.load('css/fonts/droid_sans_regular.typeface.json', function (font) {
-							textGeometry = new THREE.TextBufferGeometry('Score: ' + ++score, {
-								font: font,
-								size: 0.07,
-								height: 0,
-								curveSegments: 64
-							});
-							textMaterial = new THREE.MeshBasicMaterial({
-								color: 0x008000
-							});
-							logo = new THREE.Mesh(textGeometry, textMaterial);
-							logo.position.x = -0.17;
-							logo.position.y = 0;
-							logo.position.z = -0.7;
-							room.add(logo);
-						});
-					}
-				});
+        function animate() {
+          renderer.animate(render);
+        }
 
-				// Register a callback when an object is selected
-				input.on('rayover', (selectable) => {
-					selectable.material.opacity = 0.5;
-				});
+        function render() {
+          input.update();
 
-				// Register a callback when an object is no longer selected
-				input.on('rayout', (selectable) => {
-					selectable.material.opacity = 1;
-				});
+          const delta = clock.getDelta() * 60;
 
-				window.addEventListener('resize', onWindowResize, false);
-			}
+          // Keep cubes inside room
+          for (let i = 0; i < objects.length; i++) {
+            const cube = objects[i];
+            cube.position.add(cube.userData.velocity);
 
-			function onWindowResize() {
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-				renderer.setSize(window.innerWidth, window.innerHeight);
-			}
+            if (cube.position.x < -3 || cube.position.x > 3) {
+              cube.position.x = THREE.Math.clamp(cube.position.x, -3, 3);
+              cube.userData.velocity.x = -cube.userData.velocity.x;
+            }
 
-			function animate() {
-				renderer.animate(render);
-			}
+            if (cube.position.y < -3 || cube.position.y > 3) {
+              cube.position.y = THREE.Math.clamp(cube.position.y, -3, 3);
+              cube.userData.velocity.y = -cube.userData.velocity.y;
+            }
 
-			function render() {
+            if (cube.position.z < -3 || cube.position.z > 3) {
+              cube.position.z = THREE.Math.clamp(cube.position.z, -3, 3);
+              cube.userData.velocity.z = -cube.userData.velocity.z;
+            }
 
-				input.update();
+            cube.rotation.x += cube.userData.velocity.x * 2 * delta;
+            cube.rotation.y += cube.userData.velocity.y * 2 * delta;
+            cube.rotation.z += cube.userData.velocity.z * 2 * delta;
 
-				var delta = clock.getDelta() * 60;
+            cube.rotation.x += 0.001;
+            cube.rotation.y += 0.001;
+            cube.rotation.z += 0.001;
+          }
 
-				// Keep cubes inside room
-				for (var i = 0; i < objects.length; i++) {
-
-					var cube = objects[i];
-					cube.position.add(cube.userData.velocity);
-
-					if (cube.position.x < -3 || cube.position.x > 3) {
-						cube.position.x = THREE.Math.clamp(cube.position.x, -3, 3);
-						cube.userData.velocity.x = -cube.userData.velocity.x;
-					}
-
-					if (cube.position.y < -3 || cube.position.y > 3) {
-						cube.position.y = THREE.Math.clamp(cube.position.y, -3, 3);
-						cube.userData.velocity.y = -cube.userData.velocity.y;
-					}
-
-					if (cube.position.z < -3 || cube.position.z > 3) {
-						cube.position.z = THREE.Math.clamp(cube.position.z, -3, 3);
-						cube.userData.velocity.z = -cube.userData.velocity.z;
-					}
-
-					cube.rotation.x += cube.userData.velocity.x * 2 * delta;
-					cube.rotation.y += cube.userData.velocity.y * 2 * delta;
-					cube.rotation.z += cube.userData.velocity.z * 2 * delta;
-
-					cube.rotation.x += 0.001;
-					cube.rotation.y += 0.001;
-					cube.rotation.z += 0.001;
-				}
-
-				renderer.render(scene, camera);
-			}
-		</script>
-	</div>
-</body>
-
+          renderer.render(scene, camera);
+        }
+      </script>
+    </div>
+  </body>
 </html>

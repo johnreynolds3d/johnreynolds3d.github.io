@@ -264,9 +264,9 @@
 
             <script>
                 function insertionSort(A) {
-                    for (var j = 1; j < A.length; j++) {
-                        var key = A[j];
-                        var i = j - 1;
+                    for (let j = 1; j < A.length; j++) {
+                        const key = A[j];
+                        let i = j - 1;
                         while (i >= 0 && A[i] > key) {
                             A[i + 1] = A[i];
                             i--;
@@ -277,11 +277,11 @@
                 }
 
                 function merge(A, p, q, r) {
-                    var n1 = q - p + 1;
-                    var n2 = r - q;
-                    var L = [];
-                    var R = [];
-                    var i, j;
+                    const n1 = q - p + 1;
+                    const n2 = r - q;
+                    const L = [];
+                    const R = [];
+                    let i, j;
                     for (i = 0; i < n1; i++)
                         L[i] = A[p + i];
                     for (j = 0; j < n2; j++)
@@ -290,7 +290,7 @@
                     R[n2] = Number.MAX_SAFE_INTEGER;
                     i = 0;
                     j = 0;
-                    for (var k = p; k <= r; k++) {
+                    for (let k = p; k <= r; k++) {
                         if (L[i] <= R[j]) {
                             A[k] = L[i];
                             i++;
@@ -304,7 +304,7 @@
 
                 function mergeSort(A, p, r) {
                     if (p < r) {
-                        var q = Math.floor((p + r) / 2);
+                        const q = Math.floor((p + r) / 2);
                         mergeSort(A, p, q);
                         mergeSort(A, q + 1, r);
                         merge(A, p, q, r);
@@ -313,7 +313,7 @@
                 }
 
                 function countingSort(A, B, k) {
-                    var C = [];
+                    const C = [];
                     for (var i = 0; i <= k; i++)
                         C[i] = 0;
                     for (var j = 0; j < A.length; j++)
@@ -330,8 +330,8 @@
 
                 function radixSort(A) {
                     console.log(A);
-                    var C = [];
-                    for (var i = 0; i < A.length; i++) {
+                    const C = [];
+                    for (let i = 0; i < A.length; i++) {
                         if (A[i].toString().length > i) {
 
                             console.log('A[i].toString().length: ' + A[i].toString().length);
@@ -350,29 +350,29 @@
             <script>
                 function testSort() {
 
-                    var startTime;
+                    let startTime;
 
-                    var multiTimeInsertionSort = 0.0;
-                    var multiTimeMergeSort = 0.0;
-                    var multiTimeCountingSort = 0.0;
+                    let multiTimeInsertionSort = 0.0;
+                    let multiTimeMergeSort = 0.0;
+                    let multiTimeCountingSort = 0.0;
 
-                    var postInsertionSort, postMergeSort, postCountingSort, postRadixSort;
+                    let postInsertionSort, postMergeSort, postCountingSort, postRadixSort;
 
-                    var inputSet = [];
-                    var outputSet1 = [];
-                    var outputSet2 = [];
-                    var outputSet3 = [];
+                    const inputSet = [];
+                    const outputSet1 = [];
+                    const outputSet2 = [];
+                    const outputSet3 = [];
 
                     // Length of list
-                    var l = Math.random() * 10;
-                    var preSort = [];
+                    const l = Math.random() * 10;
+                    const preSort = [];
 
                     // Run algorithms t times, with a different list each time
-                    var t = 1;
-                    for (var j = 0; j < t; j++) {
+                    const t = 1;
+                    for (let j = 0; j < t; j++) {
 
                         // Populate list with 'random' integers between 0 and 999 inclusive
-                        for (var k = 0; k < l; k++)
+                        for (let k = 0; k < l; k++)
                             preSort.push(Math.floor(Math.random() * 1000));
                         document.getElementById("list").innerHTML = preSort;
 
@@ -386,11 +386,11 @@
                         postMergeSort = mergeSort(preSort, 0, preSort.length - 1);
                         multiTimeMergeSort += (performance.now() - startTime);
 
-                        var B = [];
+                        const B = [];
                         for (var i = 0; i < preSort.length; i++)
                             B.push(0);
 
-                        var maxValue = 0;
+                        let maxValue = 0;
                         for (var i = 0; i < preSort.length; i++)
                             if (preSort[i] > maxValue)
                                 maxValue = preSort[i];
@@ -455,30 +455,30 @@
             </div>
 
             <script>
-                var renderer3 = new THREE.WebGLRenderer({
-                    antialias: true,
-                    canvas: document.querySelector(".chart canvas")
-                });
+                const renderer3 = new THREE.WebGLRenderer({
+    antialias: true,
+    canvas: document.querySelector(".chart canvas")
+});
                 renderer3.shadowMap.enabled = true;
                 renderer3.setSize(window.innerWidth, window.innerHeight);
                 renderer3.setClearColor(0x000000);
                 renderer3.setPixelRatio(window.devicePixelRatio);
 
-                var camera3 = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+                const camera3 = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
                 camera3.position.set(5, 4, 14);
 
-                var scene3 = new THREE.Scene();
+                const scene3 = new THREE.Scene();
                 scene3.background = new THREE.Color(0x00BFFF);
 
                 // Lights
-                var ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+                const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
                 scene3.add(ambientLight);
 
-                var directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
                 directionalLight.position.set(0, 5, 5);
                 scene3.add(directionalLight);
 
-                var d = 5;
+                const d = 5;
                 directionalLight.castShadow = true;
                 directionalLight.shadow.camera.left = -d;
                 directionalLight.shadow.camera.right = d;
@@ -491,12 +491,12 @@
                 directionalLight.shadow.mapSize.x = 1024;
                 directionalLight.shadow.mapSize.y = 1024;
 
-                var textureLoader = new THREE.TextureLoader();
+                const textureLoader = new THREE.TextureLoader();
 
                 // Ground
-                var ground = new THREE.Mesh(new THREE.BoxBufferGeometry(16, 0.2, 16, 1, 1, 1), new THREE.MeshPhongMaterial({
-                    color: 0xB2B0AE
-                }));
+                const ground = new THREE.Mesh(new THREE.BoxBufferGeometry(16, 0.2, 16, 1, 1, 1), new THREE.MeshPhongMaterial({
+    color: 0xB2B0AE
+}));
                 textureLoader.load("images/grid.png", function(texture) {
                     texture.wrapS = THREE.RepeatWrapping;
                     texture.wrapT = THREE.RepeatWrapping;
@@ -510,19 +510,19 @@
                 ground.receiveShadow = true;
                 scene3.add(ground);
 
-                var controls = new THREE.OrbitControls(camera3, renderer3.domElement);
+                const controls = new THREE.OrbitControls(camera3, renderer3.domElement);
                 controls.minDistance = 1;
                 controls.maxDistance = 25;
 
-                var data = [4, 76, 33, 90, 6, 18, 23];
-                var barPos = -3;
+                const data = [4, 76, 33, 90, 6, 18, 23];
+                let barPos = -3;
 
                 // Generate objects
-                for (var i = 0; i < data.length; i++) {
+                for (let i = 0; i < data.length; i++) {
 
-                    var object = new THREE.Mesh(new THREE.BoxBufferGeometry(1, data[i] / 10, 1), new THREE.MeshLambertMaterial({
-                        color: Math.random() * 0xffffff
-                    }));
+                    const object = new THREE.Mesh(new THREE.BoxBufferGeometry(1, data[i] / 10, 1), new THREE.MeshLambertMaterial({
+        color: Math.random() * 0xffffff
+    }));
 
                     object.position.set(barPos, data[i] / 20, 0);
 
@@ -536,9 +536,9 @@
                 }
 
                 function resizeCanvasToDisplaySize3(force) {
-                    var canvas = renderer3.domElement;
-                    var width = canvas.clientWidth;
-                    var height = canvas.clientHeight;
+                    const canvas = renderer3.domElement;
+                    const width = canvas.clientWidth;
+                    const height = canvas.clientHeight;
                     if (force || canvas.width !== width || canvas.height !== height) {
 
                         // you must pass false here or three.js sadly fights the browser

@@ -214,83 +214,83 @@
             </figure>
             </p>
             <script>
-                var float64ToInt64Binary = (function() {
+                const float64ToInt64Binary = (function() {
 
-                    // Create union
-                    var flt64 = new Float64Array(1);
-                    var uint16 = new Uint16Array(flt64.buffer);
+    // Create union
+    const flt64 = new Float64Array(1);
+    const uint16 = new Uint16Array(flt64.buffer);
 
-                    var MAX_SAFE = 9007199254740991; // 2^53-1
-                    var MAX_INT32 = 2147483648; // 2^31
+    const MAX_SAFE = 9007199254740991; // 2^53-1
+    const MAX_INT32 = 2147483648; // 2^31
 
-                    function uint16ToBinary() {
+    function uint16ToBinary() {
 
-                        // Generate padded binary string one word at a time
-                        var bin64 = '';
-                        for (var word = 0; word < 4; word++)
-                            bin64 = uint16[word].toString(2).padStart(16, 0) + bin64;
+        // Generate padded binary string one word at a time
+        let bin64 = '';
+        for (let word = 0; word < 4; word++)
+            bin64 = uint16[word].toString(2).padStart(16, 0) + bin64;
 
-                        return bin64;
-                    }
+        return bin64;
+    }
 
-                    return function float64ToInt64Binary(number) {
+    return function float64ToInt64Binary(number) {
 
-                        // NaN would pass through Math.abs(number) > MAX_SAFE
-                        if (!(Math.abs(number) <= MAX_SAFE))
-                            throw new RangeError('Absolute value must be less than 2^53');
+        // NaN would pass through Math.abs(number) > MAX_SAFE
+        if (!(Math.abs(number) <= MAX_SAFE))
+            throw new RangeError('Absolute value must be less than 2^53');
 
-                        var sign = number < 0 ? 1 : 0;
+        const sign = number < 0 ? 1 : 0;
 
-                        // Shortcut using other answer for sufficiently small range
-                        if (Math.abs(number) <= MAX_INT32)
-                            return (number >>> 0).toString(2).padStart(64, sign);
+        // Shortcut using other answer for sufficiently small range
+        if (Math.abs(number) <= MAX_INT32)
+            return (number >>> 0).toString(2).padStart(64, sign);
 
-                        flt64[0] = number; // Little-endian byte ordering
+        flt64[0] = number; // Little-endian byte ordering
 
-                        // Subtract bias from exponent bits
-                        var exponent = ((uint16[3] & 0x7FF0) >> 4) - 1023;
+        // Subtract bias from exponent bits
+        const exponent = ((uint16[3] & 0x7FF0) >> 4) - 1023;
 
-                        // Encode implicit leading bit of mantissa
-                        uint16[3] |= 0x10;
+        // Encode implicit leading bit of mantissa
+        uint16[3] |= 0x10;
 
-                        // Clear exponent and sign bit
-                        uint16[3] &= 0x1F;
+        // Clear exponent and sign bit
+        uint16[3] &= 0x1F;
 
-                        // Check sign bit
-                        if (sign === 1) {
+        // Check sign bit
+        if (sign === 1) {
 
-                            // Apply two's complement
-                            uint16[0] ^= 0xFFFF;
-                            uint16[1] ^= 0xFFFF;
-                            uint16[2] ^= 0xFFFF;
-                            uint16[3] ^= 0xFFFF;
+            // Apply two's complement
+            uint16[0] ^= 0xFFFF;
+            uint16[1] ^= 0xFFFF;
+            uint16[2] ^= 0xFFFF;
+            uint16[3] ^= 0xFFFF;
 
-                            // Propagate carry bit and apply integer overflow
-                            for (var word = 0; word < 3 && uint16[word] === 0xFFFF; word++)
-                                uint16[word] = 0;
+            // Propagate carry bit and apply integer overflow
+            for (var word = 0; word < 3 && uint16[word] === 0xFFFF; word++)
+                uint16[word] = 0;
 
-                            // Complete increment
-                            uint16[word]++
-                        }
+            // Complete increment
+            uint16[word]++
+        }
 
-                        // Keep only integer part of mantissa
-                        var bin64 = uint16ToBinary().substr(11, Math.max(exponent, 0));
+        // Keep only integer part of mantissa
+        const bin64 = uint16ToBinary().substr(11, Math.max(exponent, 0));
 
-                        // Sign-extend binary string
-                        return bin64.padStart(64, sign);
-                    }
-                })();
+        // Sign-extend binary string
+        return bin64.padStart(64, sign);
+    }
+})();
 
                 String.prototype.hashCode = function() {
 
-                    var hash = 0;
+                    let hash = 0;
                     if (this.length === 0) // Strict Equality Comparison (===): same value & type
                         return hash;
 
                     console.log("this: " + this.toString());
 
-                    var chr;
-                    for (var i = 0; i < this.length; i++) {
+                    let chr;
+                    for (let i = 0; i < this.length; i++) {
 
                         chr = this.charCodeAt(i); // Return Unicode (UTF-16) of specified character
                         console.log("this(" + i + ") chr: " + this[i].toString());
@@ -315,12 +315,12 @@
                     this.previousHash = previousHash;
                     this.transactions = transactions;
 
-                    var contents = [
-                        previousHash,
-                        transactions.toString().hashCode()
-                    ];
+                    const contents = [
+        previousHash,
+        transactions.toString().hashCode()
+    ];
 
-                    var blockHash = contents.toString().hashCode();
+                    const blockHash = contents.toString().hashCode();
 
                     function getPreviousHash() {
                         return previousHash;
@@ -339,16 +339,16 @@
                     this.getBlockHash = getBlockHash;
                 }
 
-                var blockchain = [];
+                const blockchain = [];
 
                 // var genesisTransactions = ["Bob sent Laura 10 bitcoin", "Dale sent Harry 7 bitcoin"];
-                var genesisTransactions = ["a", "b"]; // Unicode: a = U+0061, b = U + 0062.
-                var genesisBlock = new Block(0, genesisTransactions);
+                const genesisTransactions = ["a", "b"]; // Unicode: a = U+0061, b = U + 0062.
+                const genesisBlock = new Block(0, genesisTransactions);
                 blockchain.push(genesisBlock);
 
                 // var block2Transactions = ["David sent Bob 10 bitcoin", "Windom sent Bob 7 bitcoin"];
-                var block2Transactions = ["b", "c"]; // Unicode: b = U + 0062, c = U + 0063.
-                var block2 = new Block(genesisBlock.getBlockHash(), block2Transactions);
+                const block2Transactions = ["b", "c"]; // Unicode: b = U + 0062, c = U + 0063.
+                const block2 = new Block(genesisBlock.getBlockHash(), block2Transactions);
                 blockchain.push(block2);
 
                 console.log("blockchain[0].getPreviousHash(): " + blockchain[0].getPreviousHash());
