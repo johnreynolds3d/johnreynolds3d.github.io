@@ -151,6 +151,20 @@
       controller2.addEventListener('selectstart', onSelectStart);
       scene.add(controller2);
 
+      // DEBUG: Visual Overlay
+      const debugDiv = document.createElement('div');
+      debugDiv.id = 'debug-overlay';
+      debugDiv.style.position = 'absolute';
+      debugDiv.style.top = '10px';
+      debugDiv.style.left = '10px';
+      debugDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      debugDiv.style.color = 'white';
+      debugDiv.style.padding = '10px';
+      debugDiv.style.fontFamily = 'monospace';
+      debugDiv.style.zIndex = '9999';
+      document.body.appendChild(debugDiv);
+      window.debugDiv = debugDiv;
+
       // Desktop controls
       controls = new PointerLockControls(camera, document.body);
 
@@ -472,6 +486,15 @@
       updatePhysics(deltaTime);
       renderer.render(scene, camera);
       time += deltaTime;
+
+      // Update Debug
+      if (window.debugDiv) {
+        window.debugDiv.innerHTML = `
+           Keys: W:${keys.w} A:${keys.a} S:${keys.s} D:${keys.d} Q:${keys.q} E:${keys.e}<br>
+           Pos: ${camBox.position.x.toFixed(2)}, ${camBox.position.y.toFixed(2)}, ${camBox.position.z.toFixed(2)}<br>
+           Locked: ${controls.isLocked}
+         `;
+      }
     }
 
     function handleControllerInput() {
