@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
+// import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
 export default defineConfig({
@@ -30,31 +30,41 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: [
+      'three',
+      'three/addons/webxr/VRButton.js',
+      'three/addons/controls/OrbitControls.js',
+      'three/addons/misc/ConvexObjectBreaker.js',
+      'three/addons/geometries/ConvexGeometry.js',
+      'three/addons/controls/PointerLockControls.js'
+    ],
+  },
   plugins: [
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,typeface.json,woff,woff2}'],
-      },
-      includeAssets: ['favicon.ico', 'images/icons/*.png'],
-      manifest: {
-        name: 'JohnReynolds3D',
-        short_name: 'JR3D',
-        description: 'John Reynolds 3D - Portfolio',
-        theme_color: '#303030',
-        icons: [
-          {
-            src: 'images/icons/icon-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: 'images/icons/icon-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-        ],
-      },
-    }),
+    // VitePWA({
+    //   registerType: 'autoUpdate',
+    //   workbox: {
+    //     globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,typeface.json,woff,woff2}'],
+    //   },
+    //   includeAssets: ['favicon.ico', 'images/icons/*.png'],
+    //   manifest: {
+    //     name: 'JohnReynolds3D',
+    //     short_name: 'JR3D',
+    //     description: 'John Reynolds 3D - Portfolio',
+    //     theme_color: '#303030',
+    //     icons: [
+    //       {
+    //         src: 'images/icons/icon-192x192.png',
+    //         sizes: '192x192',
+    //         type: 'image/png',
+    //       },
+    //       {
+    //         src: 'images/icons/icon-512x512.png',
+    //         sizes: '512x512',
+    //         type: 'image/png',
+    //       },
+    //     ],
+    //   },
+    // }),
   ],
 });
