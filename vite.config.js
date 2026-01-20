@@ -1,16 +1,8 @@
-import { defineConfig } from 'vite';
 // import { VitePWA } from 'vite-plugin-pwa';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { resolve } from 'path';
 
 export default defineConfig({
   base: './',
-  resolve: {
-    alias: [
-      { find: './libs/three', replacement: resolve(__dirname, 'node_modules/three') },
-      { find: 'libs/three', replacement: resolve(__dirname, 'node_modules/three') },
-    ]
-  },
   build: {
     rollupOptions: {
       input: {
@@ -38,18 +30,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'node_modules/three/build/three.module.js',
-          dest: 'libs/three/build'
-        },
-        {
-          src: 'node_modules/three/examples/jsm',
-          dest: 'libs/three/examples'
-        }
-      ]
-    }),
     // VitePWA({...})
   ],
 });
