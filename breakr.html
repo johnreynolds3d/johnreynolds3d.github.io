@@ -1,553 +1,671 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <title>BREAKR</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <!-- Origin Trial Token, feature = WebVR (For Chrome M62+), origin = https://felixinutero.com, expires = 2018-02-22 -->
-    <meta
-      http-equiv="origin-trial"
-      data-feature="WebVR (For Chrome M62+)"
-      data-expires="2018-02-22"
-      content="AijjIc+H1PiFpsGO8EGncPpKKcm+uD0Fxh52XnGYeKh7RlvxBPmJTWEHA+nCskrMKK5UVdGZ799lwa+7n1QIWgQAAABoeyJvcmlnaW4iOiJodHRwczovL2ZlbGl4aW51dGVyby5jb206NDQzIiwiZmVhdHVyZSI6IldlYlZSMS4xTTYyIiwiZXhwaXJ5IjoxNTE5Mjc0NjA1LCJpc1N1YmRvbWFpbiI6dHJ1ZX0="
-    />
-    <meta name="theme-color" content="#505050" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-    </style>
-  </head>
 
-  <body>
-    <!--build:js js/three.min.js-->
-    <script src="js/three.min.js"></script>
-    <!-- endbuild -->
+<head>
+  <title>BREAKR</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#505050" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+  <!-- Ammo.js must be loaded before modules if we want the global Ammo object to be available simply -->
+  <script src="js/libs/ammo.min.js"></script>
+</head>
 
-    <!--build:js js/WebVR.min.js-->
-    <script src="js/WebVR.min.js"></script>
-    <!-- endbuild -->
+<body>
+  <script type="module">
+    import * as THREE from 'three';
+    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { ConvexObjectBreaker } from 'three/addons/misc/ConvexObjectBreaker.js';
+    import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-    <!--build:js js/libs/ammo.min.js-->
-    <script src="js/libs/ammo.min.js"></script>
-    <!-- endbuild -->
+    // Graphics variables
+    let container;
+    let camera, camBox, controls, scene, renderer;
+    let textureLoader;
+    const clock = new THREE.Clock();
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const ballMaterial = new THREE.MeshPhongMaterial({
+      color: 0x202020,
+    });
 
-    <!--build:js js/controls/OrbitControls.min.js-->
-    <script src="js/controls/OrbitControls.min.js"></script>
-    <!-- endbuild -->
+    // Physics variables
+    const gravityConstant = 7.8;
+    let collisionConfiguration;
+    let dispatcher;
+    let broadphase;
+    let solver;
+    let physicsWorld;
+    const margin = 0.05;
+    const convexBreaker = new ConvexObjectBreaker();
 
-    <!--build:js js/ConvexObjectBreaker.min.js-->
-    <script src="js/ConvexObjectBreaker.min.js"></script>
-    <!-- endbuild -->
+    // Rigid bodies include all movable objects
+    const rigidBodies = [];
+    const pos = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
+    let transformAux1;
+    let tempBtVec3_1;
 
-    <!--build:js js/QuickHull.min.js-->
-    <script src="js/QuickHull.min.js"></script>
-    <!-- endbuild -->
+    let time = 0;
 
-    <!--build:js js/geometries/ConvexGeometry.min.js-->
-    <script src="js/geometries/ConvexGeometry.min.js"></script>
-    <!-- endbuild -->
+    const objectsToRemove = [];
+    for (let i = 0; i < 500; i++) {
+      objectsToRemove[i] = null;
+    }
+    let numObjectsToRemove = 0;
 
-    <!--build:js js/ray.min.js-->
-    <script src="js/ray.min.js"></script>
-    <!-- endbuild -->
+    const impactPoint = new THREE.Vector3();
+    const impactNormal = new THREE.Vector3();
 
-    <script>
-      // Graphics variables
-      let container;
-      let camera, camBox, controls, scene, renderer;
-      let input;
-      let textureLoader;
-      const clock = new THREE.Clock();
-      const raycaster = new THREE.Raycaster();
-      const ballMaterial = new THREE.MeshPhongMaterial({
-        color: 0x202020,
+    // Keyboard state
+    const keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+      q: false,
+      e: false
+    };
+
+    // Controllers
+    let controller1, controller2;
+
+    init();
+
+    function init() {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x00bfff);
+
+      initPhysics();
+
+      // Creates a camBox object
+      const camBoxMass = 0;
+      const camBoxRadius = 4;
+      camBox = new THREE.Mesh(new THREE.SphereGeometry(3, 3, 3), ballMaterial);
+      const camBoxShape = new Ammo.btSphereShape(camBoxRadius);
+      camBoxShape.setMargin(margin);
+      pos.set(0, 1.8, 16);
+      quat.set(0, 0, 0, 1);
+      const camBoxBody = createRigidBody(camBox, camBoxShape, camBoxMass, pos, quat);
+
+      // We replace the camBox parenting logic essentially.
+      // Actually, for WebXR, we usually use a 'user' group or just move the camera group.
+      // The original code parente camera to 'camBox'. 
+      // We will keep 'camBox' as a physical representation of the player if needed, but WebXR manages camera position.
+      // However, 'camBox' seems to be the player body for physics.
+      // We need to sync camBox position with camera/XR camera.
+
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+      camBox.add(camera);
+
+      const ambientLight = new THREE.AmbientLight(0x404040);
+      scene.add(ambientLight);
+
+      const light = new THREE.DirectionalLight(0xffffff, 1);
+      light.position.set(-10, 10, 5);
+      light.castShadow = true;
+
+      const d = 10;
+      light.shadow.camera.left = -d;
+      light.shadow.camera.right = d;
+      light.shadow.camera.top = d;
+      light.shadow.camera.bottom = -d;
+
+      light.shadow.camera.near = 2;
+      light.shadow.camera.far = 32;
+
+      light.shadow.mapSize.x = 2048;
+      light.shadow.mapSize.y = 2048;
+
+      scene.add(light);
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+      });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.xr.enabled = true; // WebXR enabled
+      container.appendChild(renderer.domElement);
+      document.body.appendChild(VRButton.createButton(renderer));
+
+      textureLoader = new THREE.TextureLoader();
+
+      // Controllers
+      controller1 = renderer.xr.getController(0);
+      controller1.addEventListener('selectstart', onSelectStart);
+      scene.add(controller1);
+
+      controller2 = renderer.xr.getController(1);
+      controller2.addEventListener('selectstart', onSelectStart);
+      scene.add(controller2);
+
+      // Desktop controls
+      controls = new PointerLockControls(camera, document.body);
+
+      // Click to lock
+      document.body.addEventListener('click', function () {
+        if (!renderer.xr.isPresenting) {
+          controls.lock();
+        }
       });
 
-      // Physics variables
-      const gravityConstant = 7.8;
-      let collisionConfiguration;
-      let dispatcher;
-      let broadphase;
-      let solver;
-      let physicsWorld;
-      const margin = 0.05;
-      const convexBreaker = new THREE.ConvexObjectBreaker();
+      controls.addEventListener('lock', function () {
+        // Optional: hide instructions
+      });
+      controls.addEventListener('unlock', function () {
+        // Optional: show instructions
+      });
 
-      // Rigid bodies include all movable objects
-      const rigidBodies = [];
-      const pos = new THREE.Vector3();
-      const quat = new THREE.Quaternion();
-      const transformAux1 = new Ammo.btTransform();
-      const tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
+      // Controller models could be added here (ControllerModelFactory), skipping for now to keep it simple.
+      // Add a line to show direction
+      const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, - 5)]);
+      const line = new THREE.Line(geometry);
+      line.scale.z = 5;
+      controller1.add(line.clone());
+      controller2.add(line.clone());
 
-      let time = 0;
+      // Mouse listeners
+      // window.addEventListener('mousemove', onMouseMove, false); // No longer needed with PointerLock
+      window.addEventListener('mousedown', onMouseDown, false);
 
-      const objectsToRemove = [];
-      for (let i = 0; i < 500; i++) {
-        objectsToRemove[i] = null;
+      // Keyboard listeners
+      window.addEventListener('keydown', (e) => onKey(e, true));
+      window.addEventListener('keyup', (e) => onKey(e, false));
+
+      createObjects();
+
+      window.addEventListener('resize', onWindowResize, false);
+
+      renderer.setAnimationLoop(animate);
+    }
+
+    function onMouseMove(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function onMouseDown(event) {
+      if (!renderer.xr.isPresenting) {
+        if (controls.isLocked) {
+          shootBall();
+        }
       }
-      let numObjectsToRemove = 0;
+    }
 
-      const impactPoint = new THREE.Vector3();
-      const impactNormal = new THREE.Vector3();
-
-      init();
-      animate();
-
-      function init() {
-        container = document.createElement('div');
-        document.body.appendChild(container);
-
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x00bfff);
-
-        initPhysics();
-
-        // Creates a camBox object
-        const camBoxMass = 0;
-        const camBoxRadius = 4;
-        camBox = new THREE.Mesh(new THREE.SphereBufferGeometry(3, 3, 3), ballMaterial);
-        const camBoxShape = new Ammo.btSphereShape(camBoxRadius);
-        camBoxShape.setMargin(margin);
-        pos.set(0, 1.8, 16);
-        quat.set(0, 0, 0, 1);
-        const camBoxBody = createRigidBody(camBox, camBoxShape, camBoxMass, pos, quat);
-
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-        camBox.add(camera);
-
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(-10, 10, 5);
-        light.castShadow = true;
-
-        const d = 10;
-        light.shadow.camera.left = -d;
-        light.shadow.camera.right = d;
-        light.shadow.camera.top = d;
-        light.shadow.camera.bottom = -d;
-
-        light.shadow.camera.near = 2;
-        light.shadow.camera.far = 32;
-
-        light.shadow.mapSize.x = 2048;
-        light.shadow.mapSize.y = 2048;
-
-        scene.add(light);
-
-        renderer = new THREE.WebGLRenderer({
-          antialias: true,
-        });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.vr.enabled = true;
-        container.appendChild(renderer.domElement);
-        document.body.appendChild(WEBVR.createButton(renderer));
-
-        textureLoader = new THREE.TextureLoader();
-
-        // Ray input
-        input = new RayInput.default(camera, renderer.domElement);
-        input.setSize(renderer.getSize());
-
-        // Display something to the user that shows where they’re pointing
-        camBox.add(input.getMesh());
-
-        createObjects();
-
-        // --- Start of Gamepad API stuff ---
-        let interval;
-
-        if (!('ongamepadconnected' in window)) {
-          interval = setInterval(pollGamepads, 500);
-        }
-
-        function pollGamepads() {
-          const gamepads = navigator.getGamepads
-            ? navigator.getGamepads()
-            : navigator.webkitGetGamepads
-              ? navigator.webkitGetGamepads
-              : [];
-          for (let i = 0; i < gamepads.length; i++) {
-            controller = gamepads[i];
-            if (controller) {
-              gameLoop();
-              clearInterval(interval);
-            }
-          }
-        }
-
-        function buttonPressed(b) {
-          if (typeof b == 'object') {
-            return b.pressed;
-          }
-          return b == 1.0;
-        }
-
-        function gameLoop() {
-          input.update();
-          raycaster.ray.origin.copy(camBox.position);
-          raycaster.ray.direction.copy(input.getDirection());
-
-          const gamepads = navigator.getGamepads
-            ? navigator.getGamepads()
-            : navigator.webkitGetGamepads
-              ? navigator.webkitGetGamepads
-              : [];
-          if (!gamepads) {
-            return;
-          }
-
-          const gp = gamepads[0];
-
-          camBox.translateZ(gp.axes[1] * 0.5);
-          // camBox.position.z.add(camera.getWorldDirection().z.multiplyScalar(gp.axes[1] * -1));
-          camBox.translateX(gp.axes[0] * 0.5);
-
-          if (buttonPressed(gp.buttons[0])) {
-            // Creates a ball and throws it
-            const ballMass = 35;
-            const ballRadius = 0.4;
-            const ball = new THREE.Mesh(new THREE.SphereBufferGeometry(ballRadius, 32, 32), ballMaterial);
-            ball.castShadow = true;
-            ball.receiveShadow = true;
-
-            const ballShape = new Ammo.btSphereShape(ballRadius);
-            ballShape.setMargin(margin);
-            pos.copy(raycaster.ray.direction);
-            pos.add(raycaster.ray.origin);
-            quat.set(0, 0, 0, 1);
-
-            const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
-            pos.copy(raycaster.ray.direction);
-            pos.multiplyScalar(24);
-            ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
-          }
-
-          start = requestAnimationFrame(gameLoop);
-        }
-        // --- End of Gamepad API stuff ---
-
-        window.addEventListener('resize', onWindowResize, false);
+    function onKey(event, pressed) {
+      console.log('Key:', event.key, 'Pressed:', pressed);
+      switch (event.key.toLowerCase()) {
+        case 'w': keys.w = pressed; break;
+        case 'a': keys.a = pressed; break;
+        case 's': keys.s = pressed; break;
+        case 'd': keys.d = pressed; break;
+        case 'q': keys.q = pressed; break;
+        case 'e': keys.e = pressed; break;
       }
+    }
 
-      function initPhysics() {
-        collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
-        dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
-        broadphase = new Ammo.btDbvtBroadphase();
-        solver = new Ammo.btSequentialImpulseConstraintSolver();
-        physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-        physicsWorld.setGravity(new Ammo.btVector3(0, -gravityConstant, 0));
+    function onSelectStart() {
+      // VR Trigger
+      this.userData.isSelecting = true;
+      shootBallFromController(this);
+    }
+
+    function shootBall() {
+      // With PointerLock, we shoot clearly down the camera center
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      spawnBall(raycaster.ray.origin, raycaster.ray.direction);
+    }
+
+    function shootBallFromController(controller) {
+      // Controller direction
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller.matrixWorld);
+
+      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+      spawnBall(raycaster.ray.origin, raycaster.ray.direction);
+    }
+
+    function spawnBall(origin, direction) {
+      const ballMass = 35;
+      const ballRadius = 0.4;
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 32, 32), ballMaterial);
+      ball.castShadow = true;
+      ball.receiveShadow = true;
+
+      const ballShape = new Ammo.btSphereShape(ballRadius);
+      ballShape.setMargin(margin);
+      pos.copy(origin);
+
+      // Offset a bit so it doesn't spawn inside us
+      // pos.add(direction.clone().multiplyScalar(1)); 
+
+      quat.set(0, 0, 0, 1);
+
+      const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+
+      const velocity = direction.clone().multiplyScalar(24);
+      ballBody.setLinearVelocity(new Ammo.btVector3(velocity.x, velocity.y, velocity.z));
+    }
+
+    function initPhysics() {
+      collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+      dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+      broadphase = new Ammo.btDbvtBroadphase();
+      solver = new Ammo.btSequentialImpulseConstraintSolver();
+      physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+      physicsWorld.setGravity(new Ammo.btVector3(0, -gravityConstant, 0));
+
+      transformAux1 = new Ammo.btTransform();
+      tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
+    }
+
+    function createObject(mass, halfExtents, pos, quat, material) {
+      const object = new THREE.Mesh(
+        new THREE.BoxGeometry(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2),
+        material
+      );
+      object.position.copy(pos);
+      object.quaternion.copy(quat);
+      convexBreaker.prepareBreakableObject(object, mass, new THREE.Vector3(), new THREE.Vector3(), true);
+      createDebrisFromBreakableObject(object);
+    }
+
+    function createObjects() {
+      // Ground
+      pos.set(0, -0.5, 0);
+      quat.set(0, 0, 0, 1);
+
+      const ground = new THREE.Mesh(
+        new THREE.BoxGeometry(40, 1, 40, 1, 1, 1),
+        new THREE.MeshPhongMaterial({
+          color: 0xb2b0ae,
+        })
+      );
+      const groundShape = new Ammo.btBoxShape(new Ammo.btVector3(40 * 0.5, 1 * 0.5, 40 * 0.5));
+      groundShape.setMargin(margin);
+      createRigidBody(ground, groundShape, 0, pos, quat);
+      textureLoader.load('images/grid.png', function (texture) {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(40, 40);
+        texture.colorSpace = THREE.SRGBColorSpace; // Use modern color space
+        ground.material.map = texture;
+        ground.material.needsUpdate = true;
+      });
+      ground.castShadow = true;
+      ground.receiveShadow = true;
+
+      // Tower 1
+      const towerMass = 1000;
+      const towerHalfExtents = new THREE.Vector3(2, 5, 2);
+      pos.set(-8, 5, 0);
+      quat.set(0, 0, 0, 1);
+      createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xf0a024));
+
+      // Tower 2
+      pos.set(8, 5, 0);
+      quat.set(0, 0, 0, 1);
+      createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xf4a321));
+
+      //Bridge
+      const bridgeMass = 100;
+      const bridgeHalfExtents = new THREE.Vector3(7, 0.2, 1.5);
+      pos.set(0, 10.2, 0);
+      quat.set(0, 0, 0, 1);
+      createObject(bridgeMass, bridgeHalfExtents, pos, quat, createMaterial(0xb38835));
+
+      // Stones
+      const stoneMass = 120;
+      const stoneHalfExtents = new THREE.Vector3(1, 2, 0.15);
+      const numStones = 8;
+      quat.set(0, 0, 0, 1);
+      for (let i = 0; i < numStones; i++) {
+        pos.set(0, 2, 15 * (0.5 - i / (numStones + 1)));
+        createObject(stoneMass, stoneHalfExtents, pos, quat, createMaterial(0xb2b0ae));
       }
 
-      function createObject(mass, halfExtents, pos, quat, material) {
-        const object = new THREE.Mesh(
-          new THREE.BoxGeometry(halfExtents.x * 2, halfExtents.y * 2, halfExtents.z * 2),
-          material
-        );
+      // Mountain
+      const mountainMass = 860;
+      const mountainHalfExtents = new THREE.Vector3(4, 5, 4);
+      pos.set(5, mountainHalfExtents.y * 0.5, -7);
+      quat.set(0, 0, 0, 1);
+
+      const mountainPoints = [];
+      mountainPoints.push(new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z));
+      mountainPoints.push(new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z));
+      mountainPoints.push(new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z));
+      mountainPoints.push(new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z));
+      mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
+
+      const mountain = new THREE.Mesh(new ConvexGeometry(mountainPoints), createMaterial(0xffb443));
+      mountain.position.copy(pos);
+      mountain.quaternion.copy(quat);
+      convexBreaker.prepareBreakableObject(mountain, mountainMass, new THREE.Vector3(), new THREE.Vector3(), true);
+      createDebrisFromBreakableObject(mountain);
+    }
+
+    function createDebrisFromBreakableObject(object) {
+      object.castShadow = true;
+      object.receiveShadow = true;
+
+      const shape = createConvexHullPhysicsShape(object.geometry.attributes.position.array);
+      shape.setMargin(margin);
+
+      const body = createRigidBody(
+        object,
+        shape,
+        object.userData.mass,
+        null,
+        null,
+        object.userData.velocity,
+        object.userData.angularVelocity
+      );
+
+      // Set pointer back to the three object only in the debris objects
+      const btVecUserData = new Ammo.btVector3(0, 0, 0);
+      btVecUserData.threeObject = object;
+      body.setUserPointer(btVecUserData);
+    }
+
+    function removeDebris(object) {
+      scene.remove(object);
+      physicsWorld.removeRigidBody(object.userData.physicsBody);
+    }
+
+    function createConvexHullPhysicsShape(coords) {
+      const shape = new Ammo.btConvexHullShape();
+      for (let i = 0, il = coords.length; i < il; i += 3) {
+        tempBtVec3_1.setValue(coords[i], coords[i + 1], coords[i + 2]);
+        const lastOne = i >= (il - 3);
+        shape.addPoint(tempBtVec3_1, lastOne);
+      }
+      return shape;
+    }
+
+    function createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel) {
+      if (pos) {
         object.position.copy(pos);
+      } else {
+        pos = object.position;
+      }
+      if (quat) {
         object.quaternion.copy(quat);
-        convexBreaker.prepareBreakableObject(object, mass, new THREE.Vector3(), new THREE.Vector3(), true);
-        createDebrisFromBreakableObject(object);
+      } else {
+        quat = object.quaternion;
       }
 
-      function createObjects() {
-        // Ground
-        pos.set(0, -0.5, 0);
-        quat.set(0, 0, 0, 1);
+      const transform = new Ammo.btTransform();
+      transform.setIdentity();
+      transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
+      transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
 
-        const ground = new THREE.Mesh(
-          new THREE.BoxBufferGeometry(40, 1, 40, 1, 1, 1),
-          new THREE.MeshPhongMaterial({
-            color: 0xb2b0ae,
-          })
-        );
-        const groundShape = new Ammo.btBoxShape(new Ammo.btVector3(40 * 0.5, 1 * 0.5, 40 * 0.5));
-        groundShape.setMargin(margin);
-        createRigidBody(ground, groundShape, 0, pos, quat);
-        textureLoader.load('images/grid.png', function (texture) {
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(40, 40);
-          ground.material.map = texture;
-          ground.material.needsUpdate = true;
-        });
-        ground.castShadow = true;
-        ground.receiveShadow = true;
+      const motionState = new Ammo.btDefaultMotionState(transform);
 
-        // var ground = createParalellepipedWithPhysics(40, 1, 40, 0, pos, quat, new THREE.MeshPhongMaterial({
-        //     color: 0x303030
-        // }));
-        // ground.receiveShadow = true;
+      const localInertia = new Ammo.btVector3(0, 0, 0);
+      physicsShape.calculateLocalInertia(mass, localInertia);
 
-        // Tower 1
-        const towerMass = 1000;
-        const towerHalfExtents = new THREE.Vector3(2, 5, 2);
-        pos.set(-8, 5, 0);
-        quat.set(0, 0, 0, 1);
-        createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xf0a024));
+      const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
+      const body = new Ammo.btRigidBody(rbInfo);
+      body.setFriction(0.5);
 
-        // Tower 2
-        pos.set(8, 5, 0);
-        quat.set(0, 0, 0, 1);
-        createObject(towerMass, towerHalfExtents, pos, quat, createMaterial(0xf4a321));
-
-        //Bridge
-        const bridgeMass = 100;
-        const bridgeHalfExtents = new THREE.Vector3(7, 0.2, 1.5);
-        pos.set(0, 10.2, 0);
-        quat.set(0, 0, 0, 1);
-        createObject(bridgeMass, bridgeHalfExtents, pos, quat, createMaterial(0xb38835));
-
-        // Stones
-        const stoneMass = 120;
-        const stoneHalfExtents = new THREE.Vector3(1, 2, 0.15);
-        const numStones = 8;
-        quat.set(0, 0, 0, 1);
-        for (let i = 0; i < numStones; i++) {
-          pos.set(0, 2, 15 * (0.5 - i / (numStones + 1)));
-          createObject(stoneMass, stoneHalfExtents, pos, quat, createMaterial(0xb2b0ae));
-        }
-
-        // Mountain
-        const mountainMass = 860;
-        const mountainHalfExtents = new THREE.Vector3(4, 5, 4);
-        pos.set(5, mountainHalfExtents.y * 0.5, -7);
-        quat.set(0, 0, 0, 1);
-
-        const mountainPoints = [];
-        mountainPoints.push(new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z));
-        mountainPoints.push(new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, mountainHalfExtents.z));
-        mountainPoints.push(new THREE.Vector3(mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z));
-        mountainPoints.push(new THREE.Vector3(-mountainHalfExtents.x, -mountainHalfExtents.y, -mountainHalfExtents.z));
-        mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
-
-        const mountain = new THREE.Mesh(new THREE.ConvexGeometry(mountainPoints), createMaterial(0xffb443));
-        mountain.position.copy(pos);
-        mountain.quaternion.copy(quat);
-        convexBreaker.prepareBreakableObject(mountain, mountainMass, new THREE.Vector3(), new THREE.Vector3(), true);
-        createDebrisFromBreakableObject(mountain);
+      if (vel) {
+        body.setLinearVelocity(new Ammo.btVector3(vel.x, vel.y, vel.z));
       }
-
-      function createParalellepipedWithPhysics(sx, sy, sz, mass, pos, quat, material) {
-        const object = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1), material);
-        const shape = new Ammo.btBoxShape(new Ammo.btVector3(sx * 0.5, sy * 0.5, sz * 0.5));
-        shape.setMargin(margin);
-        createRigidBody(object, shape, mass, pos, quat);
-        return object;
+      if (angVel) {
+        body.setAngularVelocity(new Ammo.btVector3(angVel.x, angVel.y, angVel.z));
       }
+      object.userData.physicsBody = body;
+      object.userData.collided = false;
+      scene.add(object);
 
-      function createDebrisFromBreakableObject(object) {
-        object.castShadow = true;
-        object.receiveShadow = true;
+      if (mass > 0) {
+        rigidBodies.push(object);
 
-        const shape = createConvexHullPhysicsShape(object.geometry.vertices);
-        shape.setMargin(margin);
-
-        const body = createRigidBody(
-          object,
-          shape,
-          object.userData.mass,
-          null,
-          null,
-          object.userData.velocity,
-          object.userData.angularVelocity
-        );
-
-        // Set pointer back to the three object only in the debris objects
-        const btVecUserData = new Ammo.btVector3(0, 0, 0);
-        btVecUserData.threeObject = object;
-        body.setUserPointer(btVecUserData);
+        // Disable deactivation
+        body.setActivationState(4);
       }
+      physicsWorld.addRigidBody(body);
+      return body;
+    }
 
-      function removeDebris(object) {
-        scene.remove(object);
-        physicsWorld.removeRigidBody(object.userData.physicsBody);
-      }
+    function createMaterial(color) {
+      color = color || createRandomColor();
+      return new THREE.MeshPhongMaterial({
+        color: color,
+      });
+    }
 
-      function createConvexHullPhysicsShape(points) {
-        const shape = new Ammo.btConvexHullShape();
-        for (let i = 0, il = points.length; i < il; i++) {
-          const p = points[i];
-          this.tempBtVec3_1.setValue(p.x, p.y, p.z);
-          const lastOne = i === il - 1;
-          shape.addPoint(this.tempBtVec3_1, lastOne);
-        }
-        return shape;
-      }
+    function createRandomColor() {
+      return Math.floor(Math.random() * (1 << 24));
+    }
 
-      function createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel) {
-        if (pos) {
-          object.position.copy(pos);
-        } else {
-          pos = object.position;
-        }
-        if (quat) {
-          object.quaternion.copy(quat);
-        } else {
-          quat = object.quaternion;
-        }
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-        const transform = new Ammo.btTransform();
-        transform.setIdentity();
-        transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
-        transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
+    function animate() {
+      const deltaTime = clock.getDelta();
 
-        const motionState = new Ammo.btDefaultMotionState(transform);
+      // Handle input (movement) if using controllers
+      // Simplified locomotion: just move camBox based on controller axes?
+      // Note: In WebXR, camera is updated automatically. 
+      // If we want to move the player, we should move the container group (camBox).
+      handleControllerInput();
+      handleKeyboardInput(deltaTime);
 
-        const localInertia = new Ammo.btVector3(0, 0, 0);
-        physicsShape.calculateLocalInertia(mass, localInertia);
+      updatePhysics(deltaTime);
+      renderer.render(scene, camera);
+      time += deltaTime;
+    }
 
-        const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
-        const body = new Ammo.btRigidBody(rbInfo);
-        body.setFriction(0.5);
+    function handleControllerInput() {
+      if (!renderer.xr.isPresenting) return;
 
-        if (vel) {
-          body.setLinearVelocity(new Ammo.btVector3(vel.x, vel.y, vel.z));
-        }
-        if (angVel) {
-          body.setAngularVelocity(new Ammo.btVector3(angVel.x, angVel.y, angVel.z));
-        }
-        object.userData.physicsBody = body;
-        object.userData.collided = false;
-        scene.add(object);
+      // Basic locomotion
+      // This is just a placeholder. Implementing full smooth locomotion requires more math.
+      // We'll skip for now to minimize complexity, as the original code's gamepad logic was specific to 'navigator.getGamepads()'
+      // which we can still access via input sources.
 
-        if (mass > 0) {
-          rigidBodies.push(object);
-
-          // Disable deactivation
-          body.setActivationState(4);
-        }
-        physicsWorld.addRigidBody(body);
-        return body;
-      }
-
-      function createMaterial(color) {
-        color = color || createRandomColor();
-        return new THREE.MeshPhongMaterial({
-          color: color,
-        });
-      }
-
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-
-      function animate() {
-        renderer.animate(render);
-      }
-
-      function render() {
-        const deltaTime = clock.getDelta();
-        updatePhysics(deltaTime);
-        renderer.render(scene, camera);
-        time += deltaTime;
-      }
-
-      function updatePhysics(deltaTime) {
-        // Step world
-        physicsWorld.stepSimulation(deltaTime, 10);
-
-        // Update rigid bodies
-        for (var i = 0, il = rigidBodies.length; i < il; i++) {
-          const objThree = rigidBodies[i];
-          const objPhys = objThree.userData.physicsBody;
-          const ms = objPhys.getMotionState();
-          if (ms) {
-            ms.getWorldTransform(transformAux1);
-
-            const p = transformAux1.getOrigin();
-            const q = transformAux1.getRotation();
-            objThree.position.set(p.x(), p.y(), p.z());
-            objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
-            objThree.userData.collided = false;
-          }
-        }
-
-        for (var i = 0, il = dispatcher.getNumManifolds(); i < il; i++) {
-          const contactManifold = dispatcher.getManifoldByIndexInternal(i);
-          const rb0 = contactManifold.getBody0();
-          const rb1 = contactManifold.getBody1();
-
-          const threeObject0 = Ammo.castObject(rb0.getUserPointer(), Ammo.btVector3).threeObject;
-          const threeObject1 = Ammo.castObject(rb1.getUserPointer(), Ammo.btVector3).threeObject;
-
-          if (!threeObject0 && !threeObject1) {
-            continue;
-          }
-
-          const userData0 = threeObject0 ? threeObject0.userData : null;
-          const userData1 = threeObject1 ? threeObject1.userData : null;
-
-          const breakable0 = userData0 ? userData0.breakable : false;
-          const breakable1 = userData1 ? userData1.breakable : false;
-
-          const collided0 = userData0 ? userData0.collided : false;
-          const collided1 = userData1 ? userData1.collided : false;
-
-          if ((!breakable0 && !breakable1) || (collided0 && collided1)) {
-            continue;
-          }
-
-          let contact = false;
-          let maxImpulse = 0;
-          for (var j = 0, jl = contactManifold.getNumContacts(); j < jl; j++) {
-            const contactPoint = contactManifold.getContactPoint(j);
-            if (contactPoint.getDistance() < 0) {
-              contact = true;
-              const impulse = contactPoint.getAppliedImpulse();
-              if (impulse > maxImpulse) {
-                maxImpulse = impulse;
-                const pos = contactPoint.get_m_positionWorldOnB();
-                const normal = contactPoint.get_m_normalWorldOnB();
-                impactPoint.set(pos.x(), pos.y(), pos.z());
-                impactNormal.set(normal.x(), normal.y(), normal.z());
-              }
-              break;
+      const session = renderer.xr.getSession();
+      if (session) {
+        for (const source of session.inputSources) {
+          if (source.gamepad) {
+            const axes = source.gamepad.axes;
+            // axes[2], axes[3] are usually thumbsticks
+            // Simple move
+            if (axes.length >= 4) {
+              camBox.translateZ(axes[3] * 0.1);
+              camBox.translateX(axes[2] * 0.1);
             }
           }
-
-          // If no point has contact, abort
-          if (!contact) {
-            continue;
-          }
-
-          // Subdivision
-          const fractureImpulse = 250;
-          if (breakable0 && !collided0 && maxImpulse > fractureImpulse) {
-            var debris = convexBreaker.subdivideByImpact(threeObject0, impactPoint, impactNormal, 1, 2, 1.5);
-            var numObjects = debris.length;
-            for (var j = 0; j < numObjects; j++) {
-              createDebrisFromBreakableObject(debris[j]);
-            }
-            objectsToRemove[numObjectsToRemove++] = threeObject0;
-            userData0.collided = true;
-          }
-
-          if (breakable1 && !collided1 && maxImpulse > fractureImpulse) {
-            var debris = convexBreaker.subdivideByImpact(threeObject1, impactPoint, impactNormal, 1, 2, 1.5);
-            var numObjects = debris.length;
-            for (var j = 0; j < numObjects; j++) {
-              createDebrisFromBreakableObject(debris[j]);
-            }
-            objectsToRemove[numObjectsToRemove++] = threeObject1;
-            userData1.collided = true;
-          }
         }
-
-        for (var i = 0; i < numObjectsToRemove; i++) {
-          removeDebris(objectsToRemove[i]);
-        }
-        numObjectsToRemove = 0;
       }
-    </script>
-  </body>
+    }
+
+
+    function handleKeyboardInput(deltaTime) {
+      if (renderer.xr.isPresenting) return; // Prioritize VR movement if in VR
+
+      const speed = 10 * deltaTime; // Units per second
+
+      // We move camBox because the camera is a child of camBox for non-VR physics representation logic,
+      // and also because we want the "player" sphere to move.
+      // However, for pure desktop view, moving camBox (which holds the camera) works.
+
+      // Get camera direction (projected on XZ plane for standard FPS walking)
+      // Note: PointerLockControls handles interaction and camera rotation (Look).
+      // We explicitly handle Movement of the player body (camBox).
+
+      // We allow movement even if not locked, for easier debugging/trackpad usage.
+      // if (controls.isLocked) { // <-- Removed strict check
+
+      // Get camera direction (projected on XZ plane for standard FPS walking)
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+
+      const right = new THREE.Vector3();
+      right.crossVectors(forward, camera.up).normalize();
+
+      if (keys.w) camBox.position.add(forward.multiplyScalar(speed));
+      if (keys.s) camBox.position.add(forward.multiplyScalar(-speed));
+      if (keys.a) camBox.position.add(right.multiplyScalar(-speed));
+      if (keys.d) camBox.position.add(right.multiplyScalar(speed));
+
+      // Fly Up/Down
+      if (keys.e) camBox.position.y += speed;
+      if (keys.q) camBox.position.y -= speed;
+
+      // We do NOT sync camBox to camera position, because camBox IS the position.
+      // Camera is a child of camBox, so it travels with it.
+
+      // } else {
+      // Fallback or just ignore if not locked
+      // }
+
+      // Update physics body position to match visual mesh
+      // Usually physics drives visuals, but for a kinematic player controller, visuals/input drive physics.
+      // Here camBox has a rigid body: 'camBoxBody'. Use kinematic update or just strict set.
+      // The original code uses 'camBoxBody' as a dynamic object?
+
+      // Let's check init: `camBoxBody = createRigidBody(..., camBoxMass, ...)` where camBoxMass = 0 (static/kinematic).
+      // If mass is 0, Bullet treats it as static unless we explicitly move it as kinematic.
+      // Since createRigidBody adds it to the world, we should update the body transform to match the mesh.
+
+      const body = camBox.userData.physicsBody;
+      if (body) {
+        const ms = body.getMotionState();
+        if (ms) {
+          const t = new Ammo.btTransform();
+          t.setIdentity();
+          t.setOrigin(new Ammo.btVector3(camBox.position.x, camBox.position.y, camBox.position.z));
+          t.setRotation(new Ammo.btQuaternion(camBox.quaternion.x, camBox.quaternion.y, camBox.quaternion.z, camBox.quaternion.w));
+          ms.setWorldTransform(t);
+          body.setMotionState(ms);
+        }
+        // Also update raw body transform for good measure (for static objects mostly)
+        const t = new Ammo.btTransform();
+        t.setIdentity();
+        t.setOrigin(new Ammo.btVector3(camBox.position.x, camBox.position.y, camBox.position.z));
+        t.setRotation(new Ammo.btQuaternion(camBox.quaternion.x, camBox.quaternion.y, camBox.quaternion.z, camBox.quaternion.w));
+        body.setWorldTransform(t);
+      }
+    }
+
+    function updatePhysics(deltaTime) {
+      // Step world
+      physicsWorld.stepSimulation(deltaTime, 10);
+
+      // Update rigid bodies
+      for (let i = 0, il = rigidBodies.length; i < il; i++) {
+        const objThree = rigidBodies[i];
+        const objPhys = objThree.userData.physicsBody;
+        const ms = objPhys.getMotionState();
+        if (ms) {
+          ms.getWorldTransform(transformAux1);
+
+          const p = transformAux1.getOrigin();
+          const q = transformAux1.getRotation();
+          objThree.position.set(p.x(), p.y(), p.z());
+          objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
+          objThree.userData.collided = false;
+        }
+      }
+
+      for (let i = 0, il = dispatcher.getNumManifolds(); i < il; i++) {
+        const contactManifold = dispatcher.getManifoldByIndexInternal(i);
+        const rb0 = contactManifold.getBody0();
+        const rb1 = contactManifold.getBody1();
+
+        const threeObject0 = Ammo.castObject(rb0.getUserPointer(), Ammo.btVector3).threeObject;
+        const threeObject1 = Ammo.castObject(rb1.getUserPointer(), Ammo.btVector3).threeObject;
+
+        if (!threeObject0 && !threeObject1) {
+          continue;
+        }
+
+        const userData0 = threeObject0 ? threeObject0.userData : null;
+        const userData1 = threeObject1 ? threeObject1.userData : null;
+
+        const breakable0 = userData0 ? userData0.breakable : false;
+        const breakable1 = userData1 ? userData1.breakable : false;
+
+        const collided0 = userData0 ? userData0.collided : false;
+        const collided1 = userData1 ? userData1.collided : false;
+
+        if ((!breakable0 && !breakable1) || (collided0 && collided1)) {
+          continue;
+        }
+
+        let contact = false;
+        let maxImpulse = 0;
+        for (let j = 0, jl = contactManifold.getNumContacts(); j < jl; j++) {
+          const contactPoint = contactManifold.getContactPoint(j);
+          if (contactPoint.getDistance() < 0) {
+            contact = true;
+            const impulse = contactPoint.getAppliedImpulse();
+            if (impulse > maxImpulse) {
+              maxImpulse = impulse;
+              const pos = contactPoint.get_m_positionWorldOnB();
+              const normal = contactPoint.get_m_normalWorldOnB();
+              impactPoint.set(pos.x(), pos.y(), pos.z());
+              impactNormal.set(normal.x(), normal.y(), normal.z());
+            }
+            break;
+          }
+        }
+
+        // If no point has contact, abort
+        if (!contact) {
+          continue;
+        }
+
+        // Subdivision
+        const fractureImpulse = 250;
+        if (breakable0 && !collided0 && maxImpulse > fractureImpulse) {
+          const debris = convexBreaker.subdivideByImpact(threeObject0, impactPoint, impactNormal, 1, 2, 1.5);
+          const numObjects = debris.length;
+          for (let j = 0; j < numObjects; j++) {
+            createDebrisFromBreakableObject(debris[j]);
+          }
+          objectsToRemove[numObjectsToRemove++] = threeObject0;
+          userData0.collided = true;
+        }
+
+        if (breakable1 && !collided1 && maxImpulse > fractureImpulse) {
+          const debris = convexBreaker.subdivideByImpact(threeObject1, impactPoint, impactNormal, 1, 2, 1.5);
+          const numObjects = debris.length;
+          for (let j = 0; j < numObjects; j++) {
+            createDebrisFromBreakableObject(debris[j]);
+          }
+          objectsToRemove[numObjectsToRemove++] = threeObject1;
+          userData1.collided = true;
+        }
+      }
+
+      for (let i = 0; i < numObjectsToRemove; i++) {
+        removeDebris(objectsToRemove[i]);
+      }
+      numObjectsToRemove = 0;
+    }
+  </script>
+</body>
+
 </html>
