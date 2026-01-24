@@ -140,13 +140,12 @@
                 // User requested: -Z, -X, Z, X directions.
 
                 if (inputMap["w"]) {
-                    // Forward (-Z requested, usually +Z in Babylon but consistent with user prompt)
-                    // Let's assume user wants 'W' to go -Z.
-                    moveDir.z = -1;
+                    // Forward/Backward reversed
+                    moveDir.z = 1;
                 }
                 if (inputMap["s"]) {
-                    // Backward (+Z)
-                    moveDir.z = 1;
+                    // Forward/Backward reversed
+                    moveDir.z = -1;
                 }
                 if (inputMap["a"]) {
                     // Left (-X)
