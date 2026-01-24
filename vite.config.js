@@ -1,5 +1,7 @@
 // import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
+import { defineConfig } from 'vite';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
   base: './',
@@ -23,6 +25,7 @@ export default defineConfig({
         crypto_plotly: resolve(__dirname, 'crypto_plotly.html'),
         drivr: resolve(__dirname, 'drivr.html'),
         spidr: resolve(__dirname, 'spidr.html'),
+        spidr_three: resolve(__dirname, 'spidr_three.html'),
         walkr: resolve(__dirname, 'walkr.html'),
         webaudio_timing: resolve(__dirname, 'webaudio_timing.html'),
         worker: resolve(__dirname, 'worker.html'),
@@ -31,5 +34,13 @@ export default defineConfig({
   },
   plugins: [
     // VitePWA({...})
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'node_modules/@babylonjs/havok/lib/esm/HavokPhysics.wasm',
+          dest: ''
+        }
+      ]
+    })
   ],
 });
